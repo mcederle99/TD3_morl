@@ -18,14 +18,20 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 	eval_env = TwoDimRewardWrapper(eval_env_base)
 
 	avg_reward = 0.
-	for _ in range(eval_episodes):
-		omega = np.random.rand(1, 1)
-		omega = np.concatenate((omega, 1-omega), axis=1)
+	# velocities = []
+	# actions = []
+	omegas = np.linspace(0.0, 1.0, num=eval_episodes, dtype=np.float64)
+	for i in range(eval_episodes):
+		# omega = np.random.rand(1, 1)
+		# omega = np.concatenate((omega, 1-omega), axis=1)
+		omega = np.array([[omegas[i], 1 - omegas[i]]])
 		state, info = eval_env.reset(seed=seed + 100)
 		done = False
 		while not done:
 			action = policy.select_action(np.array(state), omega)
 			state, reward, done, trunc, info = eval_env.step(action)
+			# velocities.append(info['x_velocity'])
+			# actions.append(np.matmul(action.T, action))
 			done = done or trunc
 
 			avg_reward += np.matmul(omega.squeeze().T, np.array(reward))
@@ -35,6 +41,8 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 	print("---------------------------------------")
 	print(f"Evaluation over {eval_episodes} episodes: {avg_reward:.3f}")
 	print("---------------------------------------")
+	# print(np.mean(velocities))
+	# print(np.mean(actions))
 	return avg_reward
 
 
@@ -107,11 +115,14 @@ if __name__ == "__main__":
 	if args.load_model != "":
 		policy_file = file_name if args.load_model == "default" else args.load_model
 		policy.load(f"./models/{policy_file}")
+		evaluations = [eval_policy(policy, args.env, args.seed)]
+		raise KeyboardInterrupt
 
 	replay_buffer = utils.ReplayBuffer(state_dim, action_dim)
 	
 	# Evaluate untrained policy
 	evaluations = [eval_policy(policy, args.env, args.seed)]
+	best_evaluation = evaluations[0]
 
 	omega = np.random.rand(1, 1)
 	omega = np.concatenate((omega, 1 - omega), axis=1)
@@ -165,5 +176,5 @@ if __name__ == "__main__":
 		if (t + 1) % args.eval_freq == 0:
 			evaluations.append(eval_policy(policy, args.env, args.seed))
 			np.save(f"./results/{file_name}", evaluations)
-			if args.save_model:
+			if args.save_model and evaluations[-1] > best_evaluation:
 				policy.save(f"./models/{file_name}")

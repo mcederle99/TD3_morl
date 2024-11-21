@@ -124,15 +124,19 @@ class TD3(object):
 			# Compute the target Q value
 			target_Q1, target_Q2 = self.critic_target(next_state, next_action)
 			target_Q = torch.min(target_Q1, target_Q2)
-			target_Q = reward + not_done * self.discount * torch.diag(torch.matmul(omegas, target_Q.T)).unsqueeze(dim=-1)
+			# target_Q = reward + not_done * self.discount * torch.diag(torch.matmul(omegas, target_Q.T)).unsqueeze(dim=-1)
+			target_Q = reward + not_done * self.discount * torch.max(torch.matmul(omegas, target_Q.T), dim=0).values.unsqueeze(dim=-1)
 
 		# Get current Q estimates
 		current_Q1, current_Q2 = self.critic(state, action)
 
 		# Compute critic loss
+		# critic_loss = ((1 - self.lam) * (F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)) +
+		# 				self.lam * (abs(torch.diag(torch.matmul(omegas, target_Q.T)) - torch.diag(torch.matmul(omegas, current_Q1.T))) +
+		# 							abs(torch.diag(torch.matmul(omegas, target_Q.T)) - torch.diag(torch.matmul(omegas, current_Q2.T)))).mean())
 		critic_loss = ((1 - self.lam) * (F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)) +
-						self.lam * (abs(torch.diag(torch.matmul(omegas, target_Q.T)) - torch.diag(torch.matmul(omegas, current_Q1.T))) +
-									abs(torch.diag(torch.matmul(omegas, target_Q.T)) - torch.diag(torch.matmul(omegas, current_Q2.T)))).mean())
+					self.lam * (abs(torch.max(torch.matmul(omegas, target_Q.T), dim=0).values - torch.diag(torch.matmul(omegas, current_Q1.T))) +
+								abs(torch.max(torch.matmul(omegas, target_Q.T), dim=0).values - torch.diag(torch.matmul(omegas, current_Q2.T)))).mean())
 
 		# Optimize the critic
 		self.critic_optimizer.zero_grad()
@@ -145,7 +149,8 @@ class TD3(object):
 		if self.total_it % self.policy_freq == 0:
 
 			# Compute actor losse
-			actor_loss = -torch.matmul(omegas, self.critic.Q1(state, self.actor(state[:, :-2], state[:, -2:])).T).mean()
+			actor_loss = -torch.max(torch.matmul(omegas, self.critic.Q1(state, self.actor(state[:, :-2], state[:, -2:])).T), dim=0).values.mean()
+			# actor_loss = -torch.matmul(omegas, self.critic.Q1(state, self.actor(state[:, :-2], state[:, -2:])).T).mean()
 			
 			# Optimize the actor 
 			self.actor_optimizer.zero_grad()
@@ -159,7 +164,6 @@ class TD3(object):
 			for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
 				target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
-
 	def save(self, filename):
 		torch.save(self.critic.state_dict(), filename + "_critic")
 		torch.save(self.critic_optimizer.state_dict(), filename + "_critic_optimizer")
@@ -167,13 +171,12 @@ class TD3(object):
 		torch.save(self.actor.state_dict(), filename + "_actor")
 		torch.save(self.actor_optimizer.state_dict(), filename + "_actor_optimizer")
 
-
 	def load(self, filename):
-		self.critic.load_state_dict(torch.load(filename + "_critic"))
-		self.critic_optimizer.load_state_dict(torch.load(filename + "_critic_optimizer"))
+		self.critic.load_state_dict(torch.load(filename + "_critic", map_location=torch.device('cpu')))
+		self.critic_optimizer.load_state_dict(torch.load(filename + "_critic_optimizer", map_location=torch.device('cpu')))
 		self.critic_target = copy.deepcopy(self.critic)
 
-		self.actor.load_state_dict(torch.load(filename + "_actor"))
-		self.actor_optimizer.load_state_dict(torch.load(filename + "_actor_optimizer"))
+		self.actor.load_state_dict(torch.load(filename + "_actor", map_location=torch.device('cpu')))
+		self.actor_optimizer.load_state_dict(torch.load(filename + "_actor_optimizer", map_location=torch.device('cpu')))
 		self.actor_target = copy.deepcopy(self.actor)
 		
