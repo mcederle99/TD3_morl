@@ -36,11 +36,13 @@ class TwoDimRewardWrapper(Wrapper):
 
         # Extract forward velocity (usually available in the info dictionary or state)
         forward_velocity = info["reward_forward"]  # Adjust based on your env specifics
+        r1 = min(forward_velocity, 5.0)
 
         # Compute control cost as the sum of the squared actions
         control_cost = info["reward_ctrl"]
+        r2 = 5 + control_cost
 
         # Create the 2-dimensional reward
-        two_dim_reward = (forward_velocity, control_cost)
+        two_dim_reward = (r1, r2)
 
         return obs, two_dim_reward, terminated, truncated, info

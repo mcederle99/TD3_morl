@@ -5,8 +5,8 @@ from wrapper import TwoDimRewardWrapper
 import argparse
 import os
 
-import utils
-import TD3
+import utils_mymorl
+import TD3_mymorl
 import OurDDPG
 import DDPG
 
@@ -22,17 +22,18 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 	for i in range(eval_episodes):
 		# velocities = []
 		# actions = []
-		omega = np.array([[omegas[i], 1 - omegas[i]]])
+		omega = [omegas[i], 1 - omegas[i]]
 		state, info = eval_env.reset(seed=seed + 100)
 		done = False
 		while not done:
 			action = policy.select_action(np.array(state), omega)
-			state, reward, done, trunc, info = eval_env.step(action)
+			state, rewards, done, trunc, info = eval_env.step(action)
+			reward = np.matmul(np.array(omega).T, np.array(rewards))
 			# velocities.append(info['x_velocity'])
 			# actions.append(np.matmul(action.T, action))
 			done = done or trunc
 
-			avg_reward += np.matmul(omega.squeeze().T, np.array(reward))
+			avg_reward += reward
 
 		# print(np.mean(velocities))
 		# print(np.mean(actions))
@@ -49,7 +50,7 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 if __name__ == "__main__":
 	
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--policy", default="TD3")                  # Policy name (TD3, DDPG or OurDDPG)
+	parser.add_argument("--policy", default="TD3_mymorl")           # Policy name (TD3, DDPG or OurDDPG)
 	parser.add_argument("--env", default="HalfCheetah-v5")          # OpenAI gym environment name
 	parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
 	parser.add_argument("--start_timesteps", default=25e3, type=int)# Time steps initial random policy is used
@@ -99,12 +100,12 @@ if __name__ == "__main__":
 	}
 
 	# Initialize policy
-	if args.policy == "TD3":
+	if args.policy == "TD3_mymorl":
 		# Target policy smoothing is scaled wrt the action scale
 		kwargs["policy_noise"] = args.policy_noise * max_action
 		kwargs["noise_clip"] = args.noise_clip * max_action
 		kwargs["policy_freq"] = args.policy_freq
-		policy = TD3.TD3(**kwargs)
+		policy = TD3_mymorl.TD3(**kwargs)
 	elif args.policy == "OurDDPG":
 		policy = OurDDPG.DDPG(**kwargs)
 	elif args.policy == "DDPG":
@@ -118,14 +119,14 @@ if __name__ == "__main__":
 		evaluations = [eval_policy(policy, args.env, args.seed)]
 		raise KeyboardInterrupt
 
-	replay_buffer = utils.ReplayBuffer(state_dim, action_dim)
+	replay_buffer = utils_mymorl.ReplayBuffer(state_dim, action_dim)
 	
 	# Evaluate untrained policy
 	evaluations = [eval_policy(policy, args.env, args.seed)]
 	best_evaluation = evaluations[0]
 
-	omega = np.random.rand(1, 1)
-	omega = np.concatenate((omega, 1 - omega), axis=1)
+	om = np.random.rand(1).item()
+	omega = [om, 1 - om]
 	state, info = env.reset(seed=args.seed)
 	done = False
 	episode_reward = 0
@@ -146,17 +147,18 @@ if __name__ == "__main__":
 			).clip(-max_action, max_action)
 
 		# Perform action
-		next_state, reward, done, trunc, _ = env.step(action)
+		next_state, rewards, done, trunc, _ = env.step(action)
+		reward = np.matmul(np.array(omega).T, np.array(rewards))
 		if episode_timesteps == 200:
 			trunc = True
 		done_bool = float(done or trunc) if episode_timesteps < 200 else 0
 		done = done or trunc
 
 		# Store data in replay buffer
-		replay_buffer.add(state, action, next_state, reward, done_bool)
+		replay_buffer.add(state, action, next_state, reward, done_bool, omega)
 
 		state = next_state
-		episode_reward += np.matmul(omega.squeeze().T, np.array(reward))
+		episode_reward += reward
 
 		# Train agent after collecting sufficient data
 		if t >= args.start_timesteps:
@@ -164,15 +166,15 @@ if __name__ == "__main__":
 
 		if done: 
 			# +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
-			print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
+			print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} Omega: {omega[0]:.3f}")
 			# Reset environment
 			state, info = env.reset(seed=args.seed)
 			done = False
 			episode_reward = 0
 			episode_timesteps = 0
 			episode_num += 1
-			omega = np.random.rand(1, 1)
-			omega = np.concatenate((omega, 1 - omega), axis=1)
+			om = np.random.rand(1).item()
+			omega = [om, 1 - om]
 
 		# Evaluate episode
 		if (t + 1) % args.eval_freq == 0:
