@@ -137,8 +137,6 @@ if __name__ == "__main__":
 	evaluations = [eval_policy(policy, args.env, args.seed)]
 	best_evaluation = evaluations[0]
 
-	om = np.random.rand(1).item()
-	omega = [om, 1 - om]
 	state, info = env.reset(seed=args.seed)
 	done = False
 	episode_reward = 0
@@ -146,6 +144,8 @@ if __name__ == "__main__":
 	episode_num = 0
 
 	for t in range(int(args.max_timesteps)):
+		om = np.random.rand(1).item()
+		omega = [om, 1 - om]
 		
 		episode_timesteps += 1
 
@@ -161,9 +161,9 @@ if __name__ == "__main__":
 		# Perform action
 		next_state, rewards, done, trunc, _ = env.step(action)
 		reward = np.matmul(np.array(omega).T, np.array(rewards))
-		if episode_timesteps == 200:
-			trunc = True
-		done_bool = float(done or trunc) if episode_timesteps < 200 else 0
+		# if episode_timesteps == 200:
+		# 	trunc = True
+		done_bool = float(done or trunc) if episode_timesteps < 1000 else 0
 		done = done or trunc
 
 		# Store data in replay buffer
@@ -178,15 +178,15 @@ if __name__ == "__main__":
 
 		if done: 
 			# +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True
-			print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f} Omega: {omega[0]:.3f}")
+			print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
 			# Reset environment
 			state, info = env.reset(seed=args.seed)
 			done = False
 			episode_reward = 0
 			episode_timesteps = 0
 			episode_num += 1
-			om = np.random.rand(1).item()
-			omega = [om, 1 - om]
+			# om = np.random.rand(1).item()
+			# omega = [om, 1 - om]
 
 		# Evaluate episode
 		if (t + 1) % args.eval_freq == 0:

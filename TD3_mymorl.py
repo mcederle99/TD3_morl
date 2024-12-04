@@ -134,9 +134,6 @@ class TD3(object):
 		else:
 			state, action, next_state, reward, not_done, omegas = replay_buffer.sample(batch_size)
 
-		# Get current Q estimates
-		current_Q1, current_Q2 = self.critic(state, action, omegas)
-
 		with torch.no_grad():
 			# Select action according to policy and add clipped noise
 			noise = (
@@ -151,11 +148,13 @@ class TD3(object):
 			target_Q1, target_Q2 = self.critic_target(next_state, next_action, omegas)
 			target_Q = torch.min(target_Q1, target_Q2)
 			target_Q = reward.unsqueeze(dim=-1) + not_done.unsqueeze(dim=-1) * self.discount * target_Q
-			if self.prioritized:
-				td_errors = current_Q1 - target_Q
+
+		# Get current Q estimates
+		current_Q1, current_Q2 = self.critic(state, action, omegas)
 
 		# Compute critic loss
 		if self.prioritized:
+			td_errors = current_Q1 - target_Q
 			critic_loss = self.loss(current_Q1, target_Q) + self.loss(current_Q2, target_Q)
 			critic_loss = torch.mean(weights * critic_loss)
 			# Calculate priorities for replay buffer $p_i = |\delta_i| + \epsilon$
