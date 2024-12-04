@@ -19,6 +19,10 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 
 	avg_reward = 0.
 	omegas = np.linspace(0.0, 1.0, num=eval_episodes, dtype=np.float64)
+
+	# pareto_vel = []
+	# pareto_cost = []
+
 	for i in range(eval_episodes):
 		# velocities = []
 		# actions = []
@@ -35,11 +39,13 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 
 			avg_reward += reward
 
-		# print(np.mean(velocities))
-		# print(np.mean(actions))
-		# print('===================')
+		# pareto_vel.append(np.mean(velocities))
+		# pareto_cost.append(np.mean(actions))
 
 	avg_reward /= eval_episodes
+
+	# np.save('pareto/pareto_vel_prova.npy', pareto_vel)
+	# np.save('pareto/pareto_cost_prova.npy', pareto_cost)
 
 	print("---------------------------------------")
 	print(f"Evaluation over {eval_episodes} episodes: {avg_reward:.3f}")
