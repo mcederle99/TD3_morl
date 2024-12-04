@@ -11,8 +11,8 @@ class ReplayBuffer(object):
 		self.state = np.zeros((max_size, state_dim))
 		self.action = np.zeros((max_size, action_dim))
 		self.next_state = np.zeros((max_size, state_dim))
-		self.reward = np.zeros((max_size, 1))
-		self.not_done = np.zeros((max_size, 1))
+		self.reward = np.zeros((max_size))
+		self.not_done = np.zeros((max_size))
 		self.omega = np.zeros((max_size, 2))
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

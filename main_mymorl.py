@@ -6,6 +6,7 @@ import argparse
 import os
 
 import utils_mymorl
+import prioritized_buffer
 import TD3_mymorl
 import OurDDPG
 import DDPG
@@ -71,6 +72,7 @@ if __name__ == "__main__":
 	parser.add_argument("--policy_freq", default=2, type=int)       # Frequency of delayed policy updates
 	parser.add_argument("--save_model", action="store_true")        # Save model and optimizer parameters
 	parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
+	parser.add_argument("--prioritized", action="store_true")
 	args = parser.parse_args()
 
 	file_name = f"{args.policy}_{args.env}_{args.seed}"
@@ -111,6 +113,7 @@ if __name__ == "__main__":
 		kwargs["policy_noise"] = args.policy_noise * max_action
 		kwargs["noise_clip"] = args.noise_clip * max_action
 		kwargs["policy_freq"] = args.policy_freq
+		kwargs["prioritized"] = args.prioritized
 		policy = TD3_mymorl.TD3(**kwargs)
 	elif args.policy == "OurDDPG":
 		policy = OurDDPG.DDPG(**kwargs)
@@ -125,7 +128,10 @@ if __name__ == "__main__":
 		evaluations = [eval_policy(policy, args.env, args.seed)]
 		raise KeyboardInterrupt
 
-	replay_buffer = utils_mymorl.ReplayBuffer(state_dim, action_dim)
+	if args.prioritized:
+		replay_buffer = prioritized_buffer.ReplayBuffer(2 ** 19, 0.6, state_dim, action_dim)
+	else:
+		replay_buffer = utils_mymorl.ReplayBuffer(state_dim, action_dim)
 	
 	# Evaluate untrained policy
 	evaluations = [eval_policy(policy, args.env, args.seed)]
@@ -185,6 +191,7 @@ if __name__ == "__main__":
 		# Evaluate episode
 		if (t + 1) % args.eval_freq == 0:
 			evaluations.append(eval_policy(policy, args.env, args.seed))
-			np.save(f"./results/{file_name}", evaluations)
+			if args.save_model:
+				np.save(f"./results/{file_name}", evaluations)
 			if args.save_model and evaluations[-1] > best_evaluation:
 				policy.save(f"./models/{file_name}")
