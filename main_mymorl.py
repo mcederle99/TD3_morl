@@ -195,3 +195,4 @@ if __name__ == "__main__":
 				np.save(f"./results/{file_name}", evaluations)
 			if args.save_model and evaluations[-1] > best_evaluation:
 				policy.save(f"./models/{file_name}")
+				best_evaluation = evaluations[-1]
