@@ -76,6 +76,8 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 
 	file_name = f"{args.policy}_{args.env}_{args.seed}"
+	if args.prioritized:
+		file_name = f"{args.policy}_{args.env}_{args.seed}_pr"
 	print("---------------------------------------")
 	print(f"Policy: {args.policy}, Env: {args.env}, Seed: {args.seed}")
 	print("---------------------------------------")
@@ -129,7 +131,7 @@ if __name__ == "__main__":
 		raise KeyboardInterrupt
 
 	if args.prioritized:
-		replay_buffer = prioritized_buffer.ReplayBuffer(2 ** 19, 0.6, state_dim, action_dim)
+		replay_buffer = prioritized_buffer.ReplayBuffer(2 ** 18, 0.6, state_dim, action_dim)
 	else:
 		replay_buffer = utils_mymorl.ReplayBuffer(state_dim, action_dim)
 	
