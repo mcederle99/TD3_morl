@@ -158,7 +158,7 @@ class TD3(object):
 			critic_loss = self.loss(current_Q1, target_Q) + self.loss(current_Q2, target_Q)
 			critic_loss = torch.mean(weights * critic_loss)
 			# Calculate priorities for replay buffer $p_i = |\delta_i| + \epsilon$
-			new_priorities = np.abs(td_errors.cpu().numpy()) + 1e-6
+			new_priorities = np.abs(td_errors.cpu().detach().numpy()) + 1e-6
 			# Update replay buffer priorities
 			replay_buffer.update_priorities(indexes, new_priorities)
 		else:
@@ -167,6 +167,7 @@ class TD3(object):
 		# Optimize the critic
 		self.critic_optimizer.zero_grad()
 		critic_loss.backward()
+		torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=0.5)
 		self.critic_optimizer.step()
 
 		# Delayed policy updates
@@ -178,6 +179,7 @@ class TD3(object):
 			# Optimize the actor 
 			self.actor_optimizer.zero_grad()
 			actor_loss.backward()
+			torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=0.5)
 			self.actor_optimizer.step()
 
 			# Update the frozen target models
