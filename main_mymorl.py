@@ -19,14 +19,14 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 	eval_env = TwoDimRewardWrapper(eval_env_base)
 
 	avg_reward = 0.
-	omegas = np.linspace(0.0, 1.0, num=eval_episodes, dtype=np.float64)
+	omegas = np.linspace(0.0, 1.0, num=eval_episodes*10, dtype=np.float64)
 
-	# pareto_vel = []
-	# pareto_cost = []
+	pareto_vel = []
+	pareto_cost = []
 
-	for i in range(eval_episodes):
-		# velocities = []
-		# actions = []
+	for i in range(eval_episodes*10):
+		velocities = []
+		actions = []
 		omega = [omegas[i], 1 - omegas[i]]
 		state, info = eval_env.reset(seed=seed + 100)
 		done = False
@@ -34,19 +34,19 @@ def eval_policy(policy, env_name, seed, eval_episodes=10):
 			action = policy.select_action(np.array(state), omega)
 			state, rewards, done, trunc, info = eval_env.step(action)
 			reward = np.matmul(np.array(omega).T, np.array(rewards))
-			# velocities.append(info['x_velocity'])
-			# actions.append(np.matmul(action.T, action))
+			velocities.append(info['x_velocity'])
+			actions.append(np.matmul(action.T, action))
 			done = done or trunc
 
 			avg_reward += reward
 
-		# pareto_vel.append(np.mean(velocities))
-		# pareto_cost.append(np.mean(actions))
+		pareto_vel.append(np.mean(velocities))
+		pareto_cost.append(np.mean(actions))
 
 	avg_reward /= eval_episodes
 
-	# np.save('pareto/pareto_vel_prova.npy', pareto_vel)
-	# np.save('pareto/pareto_cost_prova.npy', pareto_cost)
+	# np.save('pareto/pareto_vel_prior.npy', pareto_vel)
+	# np.save('pareto/pareto_cost_prior.npy', pareto_cost)
 
 	print("---------------------------------------")
 	print(f"Evaluation over {eval_episodes} episodes: {avg_reward:.3f}")
